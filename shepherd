@@ -5,6 +5,10 @@ server_version() {
   docker version -f "{{.Server.Version}}"
 }
 
+current_user() {
+  whoami
+}
+
 update_services() {
   local blacklist="$1"
   local supports_detach_option=$2
@@ -30,6 +34,8 @@ main() {
   local blacklist sleep_time supports_detach_option with_registry_auth
   blacklist="${BLACKLIST_SERVICES:-}"
   sleep_time="${SLEEP_TIME:-5m}"
+
+  echo "Current user: $(current_user)"
 
   supports_detach_option=false
   if [[ "$(server_version)" > "17.05" ]]; then
