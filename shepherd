@@ -10,7 +10,9 @@ update_services() {
   local supports_detach_option=$2
   local detach_option=""
   [ $supports_detach_option = true ] && detach_option="--detach=false"
-  local with_registry_auth=$3
+  local force_registry_auth=$3
+  local with_registry_auth=""
+  [ $force_registry_auth = true ] && with_registry_auth="--with-registry-auth"
 
   for service in $(IFS="\n" docker service ls --quiet); do
     local name image_with_digest image
@@ -18,7 +20,7 @@ update_services() {
     if [[ " $blacklist " != *" $name "* ]]; then
       image_with_digest="$(docker service inspect "$service" -f '{{.Spec.TaskTemplate.ContainerSpec.Image}}')"
       image=$(echo "$image_with_digest" | cut -d@ -f1)
-      echo "Updating service $name with image $image"
+      echo "Updating service $name with image $image (using flags: $detach_option $with_registry_auth)"
       docker service update "$service" $detach_option $with_registry_auth --image="$image" > /dev/null
     fi
   done
@@ -37,18 +39,18 @@ main() {
     supports_detach_option=false
   fi
 
-  with_registry_auth=""
+  force_registry_auth=false
   if [[ "$(server_version)" > "17.05" ]]; then
-    with_registry_auth="--with-registry-auth"
+    force_registry_auth=true
     echo "Force with registry auth due to bug in 17.06"
   else
-    with_registry_auth=""
+    force_registry_auth=false
   fi
 
   [[ "$blacklist" != "" ]] && echo "Excluding services: $blacklist"
 
   while true; do
-    update_services "$blacklist" "$supports_detach_option" "$with_registry_auth"
+    update_services "$blacklist" "$supports_detach_option" "$force_registry_auth"
     echo "Sleeping $sleep_time before next update"
     sleep "$sleep_time"
   done
